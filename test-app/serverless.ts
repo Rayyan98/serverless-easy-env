@@ -4,7 +4,17 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
   return {
     service: 'sample-service',
     custom: {
-      configVariableSources: {},
+      'serverless-easy-env': {
+        env: '${env:ENV}',
+        envResolutions: {
+          abc: {
+            dev: 'env:abc'
+          },
+          def: {
+            dev: 'easyenv:abc'
+          },
+        },
+      },
       'serverless-offline': {
         noPrependStageInUrl: true,
         httpPort: 3060,
@@ -12,6 +22,7 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
         lambdaPort: 3062,
         noTimeout: true,
         host: '0.0.0.0',
+        b: '${easyenv:def}',
       },
     },
     provider: {

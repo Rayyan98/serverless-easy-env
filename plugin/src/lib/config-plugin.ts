@@ -1,137 +1,141 @@
-import { writeFileSync } from 'fs';
+import chalk from "chalk";
 
 export class ConfigPlugin {
-  pluginInitialized = false;
-  initializationPromise?: Promise<void>;
-  configObj: Record<string, any> = {};
   configurationVariablesSources;
-  configVariableSources: Record<string, any>;
-  stageName?: string;
-  envLoaded = false;
-  localEnvPath: string;
-  failedVariables: Map<string, any> = new Map();
-  commands;
-  hooks;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  env: string;
+  envNameInitializedPromise?: Promise<void>;
+
+  envResolutions: Record<string, any>;
+  envResolutionsPromises = new Map<string, Promise<unknown>>();
+  envResolutionsResponses = new Map<
+    string,
+    {
+      status: "resolved" | "failed";
+      value: unknown;
+      error?: unknown;
+    }
+  >();
+
+  firstCall = true;
+
   constructor(serverless: any, options: any) {
-    const service = serverless.service;
-    this.configVariableSources = service.custom.configVariableSources;
-    this.localEnvPath = service.custom.localEnvPath ?? '.env';
+    const pluginConfiguration =
+      serverless.service.custom["serverless-easy-env"];
 
-    this.commands = {
-      'pull-config': {
-        lifecycleEvents: ['create-config-json'],
-      },
-    };
-
-    this.hooks = {
-      'pull-config:create-config-json': () => {
-        if (!this.configObj) {
-          throw new Error(`Config variable not loaded`);
-        } else {
-          // eslint-disable-next-line no-console
-          console.log('Config Variables loaded successfully');
-        }
-      },
-    };
+    this.envResolutions = pluginConfiguration?.envResolutions ?? {};
+    this.env = pluginConfiguration?.env;
 
     this.configurationVariablesSources = {
-      initializeConfigPlugin: {
+      easyenv: {
         resolve: async (input: {
           address: any;
           params: any;
           resolveVariable: any;
           options: any;
         }) => {
-          await this.initializePlugin(input.resolveVariable);
-          return { value: true };
-        },
-      },
-      environment: {
-        resolve: async (input: {
-          address: any;
-          params: any;
-          resolveVariable: any;
-          options: any;
-        }) => {
-          return { value: process.env[input.address] };
-        },
-      },
-      config: {
-        resolve: async (input: {
-          address: any;
-          params: any;
-          resolveVariable: any;
-          options: any;
-        }) => {
-          await this.initializePlugin(input.resolveVariable);
-          if (this.failedVariables.has(input.address)) {
-            const error = this.failedVariables.get(input.address);
+          await this.initializePlugin(input.resolveVariable, input.address);
+
+          const variableResult = this.envResolutionsResponses!.get(
+            input.address
+          );
+          if (!variableResult) {
+            console.error(
+              chalk.green("Serverless Easy Env =>"),
+              chalk.red(`Env resolution not defined for`),
+              chalk.blue(`\${${input.address}}`)
+            );
             throw new Error(
-              `Error encountered in loading variable ${input.address}: ` +
-                (error.message ?? ''),
+              `Variable resolution not defined for ${input.address}`
             );
           }
-          return { value: this.configObj[input.address] };
+          if (variableResult!.status === "failed") {
+            console.error(
+              chalk.green("Serverless Easy Env =>"),
+              chalk.red(`Env resolution failed for`),
+              chalk.blue(`\${${input.address}}`)
+            );
+            console.error(variableResult.error);
+            throw new Error(variableResult.error as never);
+          }
+          return { value: variableResult.value };
         },
       },
     };
   }
 
-  private async initializePlugin(resolveVariable: any) {
-    if (this.pluginInitialized) {
-      return true;
+  private async initializeEnvName(
+    resolveVariable: (key: string) => Promise<any>
+  ) {
+    if (this.env) {
+      return;
     }
-    if (!this.initializationPromise) {
-      this.initializationPromise = this.setupPlugin(
-        async (configKey, ...args) => {
-          try {
-            const resp = await resolveVariable(...args);
-            return resp;
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error(
-              'Config Plugin => Unable to resolve variable',
-              ...args,
-            );
-            this.failedVariables.set(configKey, err);
-            return undefined;
-          }
-        },
+
+    const defaultEnvSource = "opt:stage";
+
+    if (!this.envNameInitializedPromise) {
+      this.envNameInitializedPromise = resolveVariable(defaultEnvSource).then(
+        (value) => {
+          this.env = value;
+        }
       );
     }
     try {
-      return await this.initializationPromise;
+      await this.envNameInitializedPromise;
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.log(err);
+      console.error(
+        chalk.green("Serverless Easy Env =>"),
+        chalk.red(`Could not infer env name from source`),
+        chalk.blue(`\${${defaultEnvSource}}`)
+      );
+      console.error(err);
       throw err;
     }
   }
 
+  private async resolveEnvVariables(resolveVariable: any, key?: string) {
+    await this.setupPlugin(async (resolutionString) => {
+      try {
+        const resp = await resolveVariable(resolutionString);
+        return resp;
+      } catch (err) {
+        console.error(
+          chalk.green("Serverless Easy Env =>"),
+          chalk.red(`Unable to resolve env`),
+          chalk.blue(`\${${resolutionString}}`)
+        );
+        throw err;
+      }
+    }, key);
+  }
+
+  private async initializePlugin(resolveVariable: any, key: string) {
+    await this.initializeEnvName(resolveVariable);
+
+    if (this.firstCall) {
+      this.firstCall = false;
+      await this.resolveEnvVariables(resolveVariable);
+    }
+    await this.resolveEnvVariables(resolveVariable, key);
+  }
+
   private async resolveConfiguration(
-    configKey: string,
     confValue: any,
-    resolveVariable: (
-      configKey: string,
-      keyToResolve: string,
-    ) => Promise<string>,
+    resolveVariable: (keyToResolve: string) => Promise<string>
   ): Promise<any> {
     if (Array.isArray(confValue)) {
       return await Promise.all(
         confValue.map(
-          async (val) =>
-            await this.resolveConfiguration(configKey, val, resolveVariable),
-        ),
+          async (val) => await this.resolveConfiguration(val, resolveVariable)
+        )
       );
-    } else if (typeof confValue === 'object' && confValue != null) {
+    } else if (typeof confValue === "object" && confValue != null) {
       const value: any = {};
       const promises: any[] = [];
       const keys = Object.keys(confValue);
       for (const key of keys) {
         promises.push(
-          this.resolveConfiguration(configKey, confValue[key], resolveVariable),
+          this.resolveConfiguration(confValue[key], resolveVariable)
         );
       }
       const values = await Promise.all(promises);
@@ -139,46 +143,62 @@ export class ConfigPlugin {
         value[key] = values[index];
       }
       return value;
-    } else if (typeof confValue === 'string' && confValue.includes(':')) {
-      return await resolveVariable(configKey, confValue);
+    } else if (typeof confValue === "string" && confValue.includes(":")) {
+      return await resolveVariable(confValue);
     } else {
       return confValue;
     }
   }
 
   private async setupPlugin(
-    resolveVariable: (
-      configKey: string,
-      keyToResolve: string,
-    ) => Promise<string>,
+    resolveVariable: (keyToResolve: string) => Promise<string>,
+    singleKey?: string
   ) {
-    const stageName = await resolveVariable('', 'opt:stage');
-    if (stageName.toLowerCase().includes('local')) {
-      this.stageName = 'local';
-    } else {
-      this.stageName = stageName;
-    }
-
-    const configObj: any = {};
-    configObj.IS_LOCAL = `${this.stageName === 'local'}`;
-
     const promises: any[] = [];
-    const keys = Object.keys(this.configVariableSources);
-    for (const key of keys) {
-      const value = this.configVariableSources[key];
-      const resolvableValue = value[this.stageName] ?? value['default'];
-      promises.push(
-        this.resolveConfiguration(key, resolvableValue, resolveVariable),
-      );
-    }
-    const responses = await Promise.all(promises);
-    for (const [index, key] of keys.entries()) {
-      configObj[key] = responses[index];
+    const keys = Object.keys(this.envResolutions);
+
+    for (const key of keys.filter((k) => !singleKey || k === singleKey)) {
+      if (this.envResolutionsResponses.has(key)) {
+        continue;
+      }
+
+      if (this.envResolutionsPromises.has(key)) {
+        promises.push(this.envResolutionsPromises.get(key));
+        continue;
+      }
+
+      const value = this.envResolutions[key];
+
+      if (!(this.env in value || "default" in value)) {
+        throw new Error(
+          `Resolution string not found for ${key} for env ${this.env}. Default not found either.`
+        );
+      }
+
+      const resolvableValue = value[this.env in value ? this.env : "default"];
+
+      const promise = this.resolveConfiguration(
+        resolvableValue,
+        resolveVariable
+      )
+        .then((resolvedValue) => {
+          this.envResolutionsResponses.set(key, {
+            status: "resolved",
+            value: resolvedValue,
+          });
+        })
+        .catch((err) => {
+          this.envResolutionsResponses.set(key, {
+            status: "failed",
+            value: undefined,
+            error: err,
+          });
+        });
+
+      this.envResolutionsPromises.set(key, promise);
+      promises.push(promise);
     }
 
-    this.configObj = configObj;
-    writeFileSync('./config.json', JSON.stringify(this.configObj), 'utf8');
-    // eslint-disable-next-line no-console
-    console.log('Config Values Loaded');
+    await Promise.all(promises);
   }
 }
