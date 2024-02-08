@@ -16,6 +16,9 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
             default: ['env:abc', 'env:def']
           },
         },
+        envMatchers: {
+          dev: 'dev.*',
+        }
       },
       'serverless-offline': {
         noPrependStageInUrl: true,
@@ -25,6 +28,7 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
         noTimeout: true,
         host: '0.0.0.0',
         b: '${easyenv:def}',
+        c: '${easyenv:activeEnv}',
       },
     },
     provider: {

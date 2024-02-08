@@ -7,7 +7,7 @@ export class ConfigPlugin {
   configurationVariablesSources;
 
   rawEnv: string | undefined;
-  envMatchers: Record<string, RegExp>;
+  envMatchers: Record<string, string>;
   envNameInitializedPromise?: Promise<void>;
   env!: string;
 
@@ -55,6 +55,10 @@ export class ConfigPlugin {
         }) => {
           await this.initializePlugin(input.resolveVariable, input.address);
 
+          if (input.address === "activeEnv") {
+            return { value: this.env };
+          }
+
           const variableResult = this.envResolutionsResponses!.get(
             input.address
           );
@@ -91,12 +95,12 @@ export class ConfigPlugin {
     this.hooks = {
       "before:offline:start:init": async () => {
         if (this._writeEnvFile) {
-          await this.serverless.pluginManager.run(['write-env'])
+          await this.serverless.pluginManager.run(["write-env"]);
         }
       },
       "before:package:createDeploymentArtifacts": async () => {
         if (this._writeEnvFile) {
-          await this.serverless.pluginManager.run(['write-env'])
+          await this.serverless.pluginManager.run(["write-env"]);
         }
       },
       "write-env:create-env-file": () => {
@@ -166,13 +170,7 @@ export class ConfigPlugin {
       }
     }
 
-    this.env = inferEnv(
-      Object.entries(this.envMatchers).map(([env, patternString]) => ({
-        env,
-        pattern: new RegExp(patternString),
-      })),
-      this.rawEnv!
-    );
+    this.env = inferEnv(this.envMatchers, this.rawEnv!);
   }
 
   private async resolveEnvVariables(resolveVariable: any, key?: string) {
