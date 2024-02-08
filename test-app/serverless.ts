@@ -12,6 +12,9 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
           def: {
             dev: 'easyenv:abc'
           },
+          ghi: {
+            default: ['env:abc', 'env:def']
+          },
         },
       },
       'serverless-offline': {
@@ -37,7 +40,7 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
       'serverless-offline',
     ],
     package: {
-      patterns: ['config.json'],
+      patterns: ['!**/*', 'src/**/*', '.env.easy*'],
     },
     functions: {
       main: {

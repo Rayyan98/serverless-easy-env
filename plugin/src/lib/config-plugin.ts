@@ -1,7 +1,9 @@
 import chalk from "chalk";
 import { inferEnv } from "./env-matcher";
+import { writeFileSync } from "fs";
 
 export class ConfigPlugin {
+  serverless: any;
   configurationVariablesSources;
 
   rawEnv: string | undefined;
@@ -20,7 +22,14 @@ export class ConfigPlugin {
     }
   >();
 
+  _writeEnvFile = true;
+  envFileType: "json" | "dotenv" = "dotenv";
+  envFileName: string;
+
   firstCall = true;
+
+  hooks;
+  commands;
 
   constructor(serverless: any, options: any) {
     const pluginConfiguration =
@@ -29,7 +38,13 @@ export class ConfigPlugin {
     this.envResolutions = pluginConfiguration?.envResolutions ?? {};
     this.rawEnv = pluginConfiguration?.env;
     this.envMatchers = pluginConfiguration.envMatchers ?? {};
+    this.envFileType = pluginConfiguration.envFileType ?? "dotenv";
+    this.envFileName =
+      pluginConfiguration.envFileName ??
+      (this.envFileType === "json" ? ".env.easy.json" : ".env.easy");
+    this._writeEnvFile = pluginConfiguration.writeEnvFile ?? true;
 
+    this.serverless = serverless;
     this.configurationVariablesSources = {
       easyenv: {
         resolve: async (input: {
@@ -66,6 +81,58 @@ export class ConfigPlugin {
         },
       },
     };
+
+    this.commands = {
+      "write-env": {
+        lifecycleEvents: ["create-env-file"],
+      },
+    };
+
+    this.hooks = {
+      "before:offline:start:init": async () => {
+        if (this._writeEnvFile) {
+          await this.serverless.pluginManager.run(['write-env'])
+        }
+      },
+      "before:package:createDeploymentArtifacts": async () => {
+        if (this._writeEnvFile) {
+          await this.serverless.pluginManager.run(['write-env'])
+        }
+      },
+      "write-env:create-env-file": () => {
+        this.writeEnvFile();
+      },
+    };
+  }
+
+  private writeEnvFile() {
+    const envs = Object.keys(this.envResolutions).reduce((envs, env) => {
+      const envResolutions = this.envResolutionsResponses.get(env);
+      if (envResolutions?.status === "resolved") {
+        envs[env] = envResolutions.value;
+      }
+      return envs;
+    }, {} as Record<string, unknown>);
+
+    if (this.envFileType === "json") {
+      this.writeEnvAsJson(envs);
+    } else {
+      this.writeEnvAsDotEnv(envs);
+    }
+  }
+
+  private writeEnvAsJson(envs: Record<string, unknown>) {
+    writeFileSync(this.envFileName, `${JSON.stringify(envs, null, 2)}\n`);
+  }
+
+  private writeEnvAsDotEnv(envs: Record<string, unknown>) {
+    writeFileSync(
+      this.envFileName,
+      Object.entries(envs)
+        .map(([key, value]) => `${key}=${value}`)
+        .concat([""])
+        .join("\n")
+    );
   }
 
   private async initializeEnvName(
