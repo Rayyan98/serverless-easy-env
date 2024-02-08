@@ -1,10 +1,13 @@
 import chalk from "chalk";
+import { inferEnv } from "./env-matcher";
 
 export class ConfigPlugin {
   configurationVariablesSources;
 
-  env: string;
+  rawEnv: string | undefined;
+  envMatchers: Record<string, RegExp>;
   envNameInitializedPromise?: Promise<void>;
+  env!: string;
 
   envResolutions: Record<string, any>;
   envResolutionsPromises = new Map<string, Promise<unknown>>();
@@ -21,10 +24,11 @@ export class ConfigPlugin {
 
   constructor(serverless: any, options: any) {
     const pluginConfiguration =
-      serverless.service.custom["serverless-easy-env"];
+      serverless.service.custom?.["serverless-easy-env"];
 
     this.envResolutions = pluginConfiguration?.envResolutions ?? {};
-    this.env = pluginConfiguration?.env;
+    this.rawEnv = pluginConfiguration?.env;
+    this.envMatchers = pluginConfiguration.envMatchers ?? {};
 
     this.configurationVariablesSources = {
       easyenv: {
@@ -71,26 +75,37 @@ export class ConfigPlugin {
       return;
     }
 
-    const defaultEnvSource = "opt:stage";
+    if (!this.rawEnv) {
+      const defaultEnvSource = "opt:stage";
 
-    if (!this.envNameInitializedPromise) {
-      this.envNameInitializedPromise = resolveVariable(defaultEnvSource).then(
-        (value) => {
-          this.env = value;
-        }
-      );
+      if (!this.envNameInitializedPromise) {
+        this.envNameInitializedPromise = resolveVariable(defaultEnvSource).then(
+          (value) => {
+            this.rawEnv = value;
+          }
+        );
+      }
+
+      try {
+        await this.envNameInitializedPromise;
+      } catch (err) {
+        console.error(
+          chalk.green("Serverless Easy Env =>"),
+          chalk.red(`Could not infer env name from source`),
+          chalk.blue(`\${${defaultEnvSource}}`)
+        );
+        console.error(err);
+        throw err;
+      }
     }
-    try {
-      await this.envNameInitializedPromise;
-    } catch (err) {
-      console.error(
-        chalk.green("Serverless Easy Env =>"),
-        chalk.red(`Could not infer env name from source`),
-        chalk.blue(`\${${defaultEnvSource}}`)
-      );
-      console.error(err);
-      throw err;
-    }
+
+    this.env = inferEnv(
+      Object.entries(this.envMatchers).map(([env, patternString]) => ({
+        env,
+        pattern: new RegExp(patternString),
+      })),
+      this.rawEnv!
+    );
   }
 
   private async resolveEnvVariables(resolveVariable: any, key?: string) {

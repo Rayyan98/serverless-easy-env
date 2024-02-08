@@ -5,7 +5,6 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
     service: 'sample-service',
     custom: {
       'serverless-easy-env': {
-        env: '${env:ENV}',
         envResolutions: {
           abc: {
             dev: 'env:abc'
