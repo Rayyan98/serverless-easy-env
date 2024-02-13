@@ -147,7 +147,7 @@ export class ConfigPlugin {
     }
 
     if (!this.rawEnv) {
-      const defaultEnvSource = "opt:stage";
+      const defaultEnvSource = "sls:stage";
 
       if (!this.envNameInitializedPromise) {
         this.envNameInitializedPromise = resolveVariable(defaultEnvSource).then(

@@ -10,11 +10,10 @@ Simplifying stage and environment wise variables and values
 
 - [Installation](#installation)
 - [Quick Usage](#quick-usage)
-- [Configuration options](#configuration-options)
-  - [SnsTransportOptions](#snstransportoptions)
-  - [Description](#description)
-  - [Nuances](#nuances)
-  - [Example](#example)
+  - [Serverless ts](#serverless-ts)
+  - [Serverless yml](#serverless-yml)
+  - [Resolved Serverless File](#resolved-serverless-file)
+- [Features](#features)
 
 <!-- TOC END -->
 
@@ -24,9 +23,20 @@ Simplifying stage and environment wise variables and values
 
 ## Quick Usage
 
+- The values that a variable should take on for each env or stage that you use can be specified under `custom.serverless-easy-env.envResolutions`.
+
+- In addition to writing values directly you can also specify resolution or variable strings. They should be specified without the `${` and `}`, so the plugin will only resolve them if they are referenced by the current env or stage otherwise they will remain as simple strings.
+
+  - For example if all your variables for the env `local` use `env:` prefix ([serverless environment variables](https://www.serverless.com/framework/docs/providers/aws/guide/variables)) then even if variables for other stages use `ssm:` prefix they will not be resolved so you won't need aws credentials to be configured run sls offline.
+- You can ask the easy env plugin for the current value of the env variable using the `${easyenv:variable-name}` syntax
+
+- The current env to use to resolve env variables is fetched using the `sls:stage` variable which is defined by serverless as `${opt:stage, self:provider.stage, "dev"}` ([reference](https://www.serverless.com/framework/docs/providers/aws/guide/variables))
+
+- In addition to per env values for env variables, you can specify a `default` as well which increases convenience greatly. If an env specific value is not specified for some env variable then the default value is checked. If that is not found either then an error might be thrown
+
 Sample usage for serverless.ts and serverless yaml follow, followed by the resolved sls file viewed by running sls print
 
-### Serverless.ts
+### Serverless ts
 
 ```typescript
 import type { AWS } from '@serverless/typescript';
@@ -91,7 +101,7 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
 module.exports = createServerlessConfiguration();
 ```
 
-### Serverless.yml
+### Serverless yml
 
 ```yaml
 service: sample-service
@@ -195,3 +205,5 @@ functions:
           cors: true
     name: sample-service-local-main
 ```
+
+## Features
