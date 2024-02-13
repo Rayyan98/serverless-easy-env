@@ -1,6 +1,6 @@
 {
   "name": "serverless-easy-env",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Simplifying stage and environment wise variables and values",
   "main": "dist/index.js",
   "scripts": {
