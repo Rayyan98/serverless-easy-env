@@ -1,15 +1,35 @@
 {
   "name": "serverless-easy-env",
   "version": "1.0.0",
-  "description": "",
+  "description": "Simplifying stage and environment wise variables and values",
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
     "clear-build": "rm -rf dist",
     "rebuild": "npm run clear-build && npm run build",
+    "prerelease": "npm run rebuild",
+    "release": "npm publish --access public",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "serverless",
+    "serverless-plugin",
+    "dotenv",
+    "env",
+    "environment"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Rayyan98/serverless-easy-env"
+  },
+  "bugs": {
+    "url": "https://github.com/Rayyan98/serverless-easy-env/issues"
+  },
+  "homepage": "https://github.com/Rayyan98/serverless-easy-env#readme",
+  "author": "rayyan98",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^20.11.16",
