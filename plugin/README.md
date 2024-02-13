@@ -14,8 +14,9 @@ Simplifying stage and environment wise variables and values
   - [Serverless yml](#serverless-yml)
   - [Resolved Serverless File](#resolved-serverless-file)
 - [Features](#features)
+  - [Read Dot Env](#read-dot-env)
   - [Deep Object and Array Resolution](#deep-object-and-array-resolution)
-  - [Env File](#env-file)
+  - [Output Env File](#output-env-file)
   - [Env Matchers](#env-matchers)
 - [All Options Example](#all-options-example)
 
@@ -216,6 +217,14 @@ functions:
 
 ## Features
 
+### Read Dot Env
+
+By default the plugin will read the `.env` file to supplement the env resolutions that are performed using the `env:` prefix. It will look for a .env file in the same directory as from which the node process was started (which is usually the same as the directory of the serverless file or from which the serverless command in invoked).
+
+- You can disable this behavior using the `custom.serverless-easy-env.loadDotEnv` option which is true by default.
+
+- The path to the env file can be explicitly specified via the `custom.serverless-easy-env.loadDotEnvFilePath` option. It is `.env` by default and resolved against the directory mentioned before.
+
 ### Deep Object and Array Resolution
 
 Variable strings even when deeply nested will get resolved
@@ -260,7 +269,7 @@ envResolutions: {
 
 will work.
 
-### Env file
+### Output Env File
 
 This is useful if you have a lot of env variables that you want to become part of the lambda env variables and are not able to fit them into the 4 KB limit by AWS ([reference](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html)). You can include the file in the lambda code package using
 
@@ -331,6 +340,8 @@ custom:
         default: easyenv:datadogEnabled
     envMatchers:
       local: 'local.*'
+    loadDotEnv: true
+    loadDotEnvFilePath: .env.with-non-normal-path
 provider:
   name: aws
   runtime: nodejs18.x

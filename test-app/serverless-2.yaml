@@ -26,6 +26,8 @@ custom:
         default: easyenv:datadogEnabled
     envMatchers:
       local: 'local.*'
+    loadDotEnv: true
+    loadDotEnvFilePath: .env.with-non-normal-path
 provider:
   name: aws
   runtime: nodejs18.x

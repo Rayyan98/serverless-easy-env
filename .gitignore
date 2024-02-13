@@ -4,4 +4,4 @@ node_modules
 plugin/dist
 
 test-app/.serverless
-test-app/.env*
+test-app/.env.easy*
