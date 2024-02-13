@@ -211,3 +211,59 @@ functions:
 ```
 
 ## Features
+
+### Deep Object and Array Resolution
+
+Variable strings even when deeply nested will get resolved
+
+In short,
+
+```yml
+envResolutions:
+  someEnvVariable:
+    prod:
+      someKey1:
+        - ssm:apiKeyOnSsm
+        - ssm:apiKeyOnSsm2
+      someKey2:
+        nestedKey2:
+          oneMoreNestedKey2:
+            - ssm:arrayElementOne
+    dev:
+      - env:SOME_ENV_VARIABLE
+```
+
+or
+
+```typescript
+envResolutions: {
+  someEnvVariable: {
+    prod: {
+      someKey1: [
+        'ssm:apiKeyOnSsm',
+        'ssm:apiKeyOnSsm2',
+      ],
+      someKey2: {
+        nestedKey2: {
+          oneMoreNestedKey2; ['ssm:arrayElementOne'],
+        },
+      },
+    },
+    default: ['env:SOME_ENV_VARIABLE']
+  },
+}
+```
+
+will work.
+
+### Env file
+
+- By default the complete resolved values of all the variables in envResolutions are written to a `.env.easy` file. This file is created in the same folder from which the sls command is invoked or node process starts.
+
+- You can turn of this behavior using `custom.serverless-easy-env.writeEnvFile: false`
+
+- By default the file is written in a manner so that it can be read by [dotenv](https://www.npmjs.com/package/dotenv), however, this means that if the resolved value of some variable as an object or array, it can get written weirdly. To avoid this you can change env file type to JSON
+
+- Env file type can be controlled using `custom.serverless-easy-env.envFileType`. The only two supported values are `json` and `dotenv`. When json is selected, the default file name is going to be `.env.easy.json`
+
+- The file name of the env file can be controlled through `custom.serverless-easy-env.envFileName` and will override any default
