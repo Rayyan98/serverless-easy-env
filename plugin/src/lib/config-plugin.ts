@@ -150,11 +150,13 @@ export class ConfigPlugin {
       const defaultEnvSource = "sls:stage";
 
       if (!this.envNameInitializedPromise) {
-        this.envNameInitializedPromise = resolveVariable(defaultEnvSource).then(
-          (value) => {
+        this.envNameInitializedPromise = resolveVariable(defaultEnvSource)
+          .then((value) => {
             this.rawEnv = value;
-          }
-        );
+          })
+          .then(() => {
+            this.env = inferEnv(this.envMatchers, this.rawEnv!);
+          });
       }
 
       try {
@@ -169,8 +171,6 @@ export class ConfigPlugin {
         throw err;
       }
     }
-
-    this.env = inferEnv(this.envMatchers, this.rawEnv!);
   }
 
   private async resolveEnvVariables(resolveVariable: any, key?: string) {

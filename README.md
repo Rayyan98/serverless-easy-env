@@ -27,10 +27,11 @@ Simplifying stage and environment wise variables and values
 
 - In addition to writing values directly you can also specify resolution or variable strings. They should be specified without the `${` and `}`, so the plugin will only resolve them if they are referenced by the current env or stage otherwise they will remain as simple strings.
 
-  - For example if all your variables for the env `local` use `env:` prefix ([serverless environment variables](https://www.serverless.com/framework/docs/providers/aws/guide/variables)) then even if variables for other stages use `ssm:` prefix they will not be resolved so you won't need aws credentials to be configured run sls offline.
+  - For example if all your variables for the env `local` use `env:` prefix ([serverless environment variables](https://www.serverless.com/framework/docs/providers/aws/guide/variables)) then even if variables for other stages use `ssm:` prefix they will not be resolved so you won't need aws credentials to be configured to run sls offline --stage local.
+
 - You can ask the easy env plugin for the current value of the env variable using the `${easyenv:variable-name}` syntax
 
-- The current env to use to resolve env variables is fetched using the `sls:stage` variable which is defined by serverless as `${opt:stage, self:provider.stage, "dev"}` ([reference](https://www.serverless.com/framework/docs/providers/aws/guide/variables))
+- The current env to use to resolve env variables is fetched using the `sls:stage` variable which is defined by serverless as `${opt:stage, self:provider.stage, "dev"}` ([reference](https://www.serverless.com/framework/docs/providers/aws/guide/variables)). You may override it using `custom.serverless-easy-env.env` or capture groups that are covered in features
 
 - In addition to per env values for env variables, you can specify a `default` as well which increases convenience greatly. If an env specific value is not specified for some env variable then the default value is checked. If that is not found either then an error might be thrown
 
