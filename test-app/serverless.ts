@@ -6,38 +6,32 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
     custom: {
       'serverless-easy-env': {
         envResolutions: {
-          abc: {
-            dev: 'env:abc'
+          apiKeys: {
+            prod: ['ssm:apiKeyOnSsm', 'ssm:apiKeyOnSsm2'],
+            default: ['env:API_KEY']
           },
-          def: {
-            dev: 'easyenv:abc'
+          datadogEnabled: {
+            prod: true,
+            stg: true,
+            dev: false,
+            local: false,
           },
-          ghi: {
-            default: ['env:abc', 'env:def']
+          someValueLikeSecurityGroups: {
+            local: ['random-name'],
+            default: ['ssm:abc', 'ssm:def']
           },
         },
-        envMatchers: {
-          dev: 'dev.*',
-        }
-      },
-      'serverless-offline': {
-        noPrependStageInUrl: true,
-        httpPort: 3060,
-        websocketPort: 3061,
-        lambdaPort: 3062,
-        noTimeout: true,
-        host: '0.0.0.0',
-        b: '${easyenv:def}',
-        c: '${easyenv:activeEnv}',
       },
     },
     provider: {
       name: 'aws',
       runtime: 'nodejs18.x',
-      deploymentMethod: 'direct',
-      region: 'us-east-1',
-      timeout: 30,
-      memorySize: 512,
+      apiGateway: {
+        apiKeys: '${easyenv:apiKeys}' as never,
+      },
+      vpc: {
+        securityGroupIds: '${easyenv:someValueLikeSecurityGroups}',
+      } as never,
     },
     plugins: [
       'serverless-easy-env',

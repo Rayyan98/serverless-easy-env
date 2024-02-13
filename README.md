@@ -59,7 +59,7 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
             local: false,
           },
           someValueLikeSecurityGroups: {
-            local: [],
+            local: ['random-name'],
             default: ['ssm:abc', 'ssm:def']
           },
         },
@@ -121,7 +121,8 @@ custom:
         dev: false
         local: false
       someValueLikeSecurityGroups:
-        local: []
+        local:
+          - random-name
         default:
           - ssm:abc
           - ssm:def
@@ -172,7 +173,8 @@ custom:
         dev: false
         local: false
       someValueLikeSecurityGroups:
-        local: []
+        local:
+          - random-name
         default:
           - ssm:abc
           - ssm:def
@@ -183,7 +185,8 @@ provider:
     apiKeys:
       - some-api-key-that-exported-in-env
   vpc:
-    securityGroupIds: []
+    securityGroupIds:
+      - random-name
   stage: dev
   region: us-east-1
   versionFunctions: true
