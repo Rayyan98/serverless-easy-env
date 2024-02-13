@@ -1,6 +1,9 @@
 service: sample-service
 custom:
   serverless-easy-env:
+    writeEnvFile: true
+    envFileType: json
+    envFileName: .env.easy.generated.json
     envResolutions:
       apiKeys:
         prod:
@@ -19,6 +22,10 @@ custom:
         default:
           - ssm:abc
           - ssm:def
+      aSelfReference:
+        default: easyenv:datadogEnabled
+    envMatchers:
+      local: 'local.*'
 provider:
   name: aws
   runtime: nodejs18.x
@@ -27,6 +34,8 @@ provider:
       - ${easyenv:apiKeys}
   vpc:
     securityGroupIds: ${easyenv:someValueLikeSecurityGroups}
+  randomValue: ${easyenv:aSelfReference}
+  activeEnv: ${easyenv:activeEnv}
 plugins:
   - serverless-easy-env
   - serverless-offline

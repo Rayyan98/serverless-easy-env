@@ -21,6 +21,9 @@ const createServerlessConfiguration: () => Promise<AWS> = async () => {
             default: ['ssm:abc', 'ssm:def']
           },
         },
+        envMatchers: {
+          local: 'local.*',
+        },
       },
     },
     provider: {

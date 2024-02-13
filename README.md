@@ -14,6 +14,10 @@ Simplifying stage and environment wise variables and values
   - [Serverless yml](#serverless-yml)
   - [Resolved Serverless File](#resolved-serverless-file)
 - [Features](#features)
+  - [Deep Object and Array Resolution](#deep-object-and-array-resolution)
+  - [Env File](#env-file)
+  - [Env Matchers](#env-matchers)
+- [All Options Example](#all-options-example)
 
 <!-- TOC END -->
 
@@ -258,6 +262,22 @@ will work.
 
 ### Env file
 
+This is useful if you have a lot of env variables that you want to become part of the lambda env variables and are not able to fit them into the 4 KB limit by AWS ([reference](https://docs.aws.amazon.com/lambda/latest/dg/configuration-envvars.html)). You can include the file in the lambda code package using
+
+```yaml
+patterns:
+  - .env.easy*
+```
+
+and then load in the lambda or cloud function using, for example
+
+```typescript
+import { config } from 'dotenv';
+config({ path: '.env.easy'});
+```
+
+This file is generated during packaging and deployment using serverless hooks. It is also generated before start when using serverless offline start. You can also create it anytime using the serverless command `sls write-env`.
+
 - By default the complete resolved values of all the variables in envResolutions are written to a `.env.easy` file. This file is created in the same folder from which the sls command is invoked or node process starts.
 
 - You can turn of this behavior using `custom.serverless-easy-env.writeEnvFile: false`
@@ -267,3 +287,74 @@ will work.
 - Env file type can be controlled using `custom.serverless-easy-env.envFileType`. The only two supported values are `json` and `dotenv`. When json is selected, the default file name is going to be `.env.easy.json`
 
 - The file name of the env file can be controlled through `custom.serverless-easy-env.envFileName` and will override any default
+
+### Env Matchers
+
+This feature is useful if you want to be flexible with your stage name but want them to be mapped onto certain envs that you specified in the `envResolutions`. A case in point is when you want to deploy your stack under a different stage name like `prod-v2` but want to reuse all env variables from ssm from `prod`. The active env is then determined by first passing the value of `${sls:stage}` or `custom.serverless-easy-env.env` through the regex patterns specified under `custom.serverless-easy-env.envMatchers`. The first to match is taken as the active env, otherwise the value itself becomes the active env. The active env can always be fetched using `${easyenv:activeEnv}`.
+
+The keys are the env names which should correspond to those under `envResolutions` and their values are regex patterns in a string. The regex pattern is tested for a full match meaning that if you want capture all stages that start with `local` (example: `local-my-name`) under the env `local` then a pattern of `local.*` must be supplied. Just `local` will not work.
+
+```typescript
+envMatchers: {
+  local: 'local.*',
+}
+```
+
+### All Options Example
+
+```yaml
+service: sample-service
+custom:
+  serverless-easy-env:
+    writeEnvFile: true
+    envFileType: json
+    envFileName: .env.easy.generated.json
+    envResolutions:
+      apiKeys:
+        prod:
+          - ssm:apiKeyOnSsm
+          - ssm:apiKeyOnSsm2
+        default:
+          - env:API_KEY
+      datadogEnabled:
+        prod: true
+        stg: true
+        dev: false
+        local: false
+      someValueLikeSecurityGroups:
+        local:
+          - random-name
+        default:
+          - ssm:abc
+          - ssm:def
+      aSelfReference:
+        default: easyenv:datadogEnabled
+    envMatchers:
+      local: 'local.*'
+provider:
+  name: aws
+  runtime: nodejs18.x
+  apiGateway:
+    apiKeys:
+      - ${easyenv:apiKeys}
+  vpc:
+    securityGroupIds: ${easyenv:someValueLikeSecurityGroups}
+  randomValue: ${easyenv:aSelfReference}
+  activeEnv: ${easyenv:activeEnv}
+plugins:
+  - serverless-easy-env
+  - serverless-offline
+package:
+  patterns:
+    - '!**/*'
+    - src/**/*
+    - .env.easy*
+functions:
+  main:
+    handler: src/main.handler
+    events:
+      - http:
+          method: GET
+          path: /
+          cors: true
+```
