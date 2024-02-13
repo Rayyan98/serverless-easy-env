@@ -36,6 +36,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
-    "chalk": "^4.1.2"
+    "chalk": "^4.1.2",
+    "dotenv": "^16.4.3"
   }
 }

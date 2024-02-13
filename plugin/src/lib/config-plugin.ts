@@ -28,6 +28,11 @@ export class ConfigPlugin {
 
   firstCall = true;
 
+  loadDotEnv = true;
+  loadDotEnvFilePath = ".env";
+  loadDotEnvPromise?: Promise<void>;
+  loadDotEnvLoaded = false;
+
   hooks;
   commands;
 
@@ -37,12 +42,14 @@ export class ConfigPlugin {
 
     this.envResolutions = pluginConfiguration?.envResolutions ?? {};
     this.rawEnv = pluginConfiguration?.env;
-    this.envMatchers = pluginConfiguration.envMatchers ?? {};
-    this.envFileType = pluginConfiguration.envFileType ?? "dotenv";
+    this.envMatchers = pluginConfiguration?.envMatchers ?? {};
+    this.envFileType = pluginConfiguration?.envFileType ?? "dotenv";
     this.envFileName =
-      pluginConfiguration.envFileName ??
+      pluginConfiguration?.envFileName ??
       (this.envFileType === "json" ? ".env.easy.json" : ".env.easy");
-    this._writeEnvFile = pluginConfiguration.writeEnvFile ?? true;
+    this._writeEnvFile = pluginConfiguration?.writeEnvFile ?? true;
+    this.loadDotEnv = pluginConfiguration?.loadDotEnv ?? true;
+    this.loadDotEnvFilePath = pluginConfiguration?.loadDotEnvFilePath ?? ".env";
 
     this.serverless = serverless;
     this.configurationVariablesSources = {
@@ -189,7 +196,23 @@ export class ConfigPlugin {
     }, key);
   }
 
+  private async readDotEnv() {
+    if (this.loadDotEnv) {
+      if (this.loadDotEnvLoaded) {
+        return;
+      }
+      if (!this.loadDotEnvPromise) {
+        this.loadDotEnvPromise = import("dotenv").then((dotenv) => {
+          dotenv.config({ path: this.loadDotEnvFilePath });
+          this.loadDotEnvLoaded = true;
+        });
+      }
+      await this.loadDotEnvPromise;
+    }
+  }
+
   private async initializePlugin(resolveVariable: any, key: string) {
+    await this.readDotEnv();
     await this.initializeEnvName(resolveVariable);
 
     if (this.firstCall) {
